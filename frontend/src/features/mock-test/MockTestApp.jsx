@@ -30,7 +30,7 @@ const screenState = {
   result: 'result',
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'VITE_API_BASE_URL=https://mock-test-app-backend.onrender.com'
 const DIFFICULTY_LEVELS = ['Easy', 'Moderate', 'Hard']
 const USERS = [
   { id: 'H', name: 'H' },
