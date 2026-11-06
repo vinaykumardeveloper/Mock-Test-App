@@ -4,6 +4,8 @@ Simple React frontend for a mock test application (Testbook-style layout, simpli
 
 ## Current Features
 
+- User selection with login confirmation (`Yes` / `No`) and no password prompt
+- Shared All Tests library across users with per-user attempt history and results
 - Bigger clean home screen with centered actions
 - Prepare Test flow now shows available PDFs before starting test
 - Separate upload page for PDFs
@@ -14,7 +16,10 @@ Simple React frontend for a mock test application (Testbook-style layout, simpli
   - Question and options
   - Question palette (answered/current/unanswered)
   - Previous / Save & Next / Submit
-- Result screen with score summary
+- Result screen with score summary and a review of every question, including correct answers and the user's selections
+- Copy the completed test's questions, options, and correct answers to the clipboard (requires HTTPS or localhost)
+- Review your latest completed attempt from the All Tests details page
+- All Tests and Previous Tests group retakes by test and show the latest attempt number and completed result
 
 ## Folder Structure
 

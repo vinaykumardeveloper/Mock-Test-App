@@ -25,12 +25,15 @@ const screenState = {
   prepareTest: 'prepareTest',
   previousTests: 'previousTests',
   allTests: 'allTests',
+  testReview: 'testReview',
   pausedTests: 'pausedTests',
   test: 'test',
   result: 'result',
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'VITE_API_BASE_URL=https://mock-test-app-backend.onrender.com'
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+).replace(/\/+$/, '')
 const DIFFICULTY_LEVELS = ['Easy', 'Moderate', 'Hard']
 const USERS = [
   { id: 'H', name: 'H' },
@@ -43,6 +46,19 @@ function getReadableError(error, fallbackMessage) {
   }
 
   return error.message || fallbackMessage
+}
+
+async function parseJsonResponse(response) {
+  const rawBody = await response.text()
+  if (!rawBody) {
+    return null
+  }
+
+  try {
+    return JSON.parse(rawBody)
+  } catch {
+    throw new Error('Server returned an invalid response. Please try again.')
+  }
 }
 
 export function MockTestApp() {
@@ -92,6 +108,8 @@ export function MockTestApp() {
   const [isLoadingSelectedPreviousTest, setIsLoadingSelectedPreviousTest] = useState(false)
   const [selectedPreviousTestError, setSelectedPreviousTestError] = useState('')
   const [isRetakingPreviousTest, setIsRetakingPreviousTest] = useState(false)
+  const [isReviewingTest, setIsReviewingTest] = useState(false)
+  const [savedTestReview, setSavedTestReview] = useState(null)
   const [pausedTests, setPausedTests] = useState([])
   const [pausedTestsError, setPausedTestsError] = useState('')
   const [isLoadingPausedTests, setIsLoadingPausedTests] = useState(false)
@@ -101,6 +119,8 @@ export function MockTestApp() {
   const pausedIdRef = useRef(null)
   const authTokenRef = useRef('')
   const latestResultRef = useRef({ testId: '', summary: null })
+  const latestAnswersRef = useRef({})
+  const attemptStartedAtRef = useRef('')
   const historyInitializedRef = useRef(false)
 
   const navigateToScreen = useCallback((nextScreen, replace = false) => {
@@ -122,7 +142,12 @@ export function MockTestApp() {
       void fetch(`${API_BASE_URL}/api/tests/${encodeURIComponent(testId)}/result`, {
         method: 'POST',
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify(summary),
+        body: JSON.stringify({
+          ...summary,
+          answers: latestAnswersRef.current,
+          startedAt: attemptStartedAtRef.current || new Date().toISOString(),
+          completionStatus: 'completed',
+        }),
       }).catch(() => {})
     }
     if (pausedId) {
@@ -188,6 +213,10 @@ export function MockTestApp() {
   }, [activeTestId, result])
 
   useEffect(() => {
+    latestAnswersRef.current = answers
+  }, [answers])
+
+  useEffect(() => {
     if (!isCreatingTest) {
       setCreateProgress(0)
       return
@@ -216,6 +245,7 @@ export function MockTestApp() {
     testId = '',
     nickname = '',
     markingScheme = null,
+    startedAt = null,
   ) {
     if (!Array.isArray(customQuestions) || customQuestions.length === 0) {
       setPrepareTestError('No questions available to start the test.')
@@ -242,6 +272,10 @@ export function MockTestApp() {
     })
     reset(finalDuration)
     pausedIdRef.current = null
+    const parsedStartedAt = new Date(startedAt || Date.now())
+    attemptStartedAtRef.current = Number.isNaN(parsedStartedAt.getTime())
+      ? new Date().toISOString()
+      : parsedStartedAt.toISOString()
     setPauseError('')
     navigateToScreen(screenState.test, true)
   }
@@ -293,6 +327,8 @@ export function MockTestApp() {
     setSelectedPreviousTestId('')
     setSelectedPreviousTest(null)
     setSelectedPreviousTestError('')
+    setSavedTestReview(null)
+    attemptStartedAtRef.current = ''
   }
 
   function logout() {
@@ -304,6 +340,7 @@ export function MockTestApp() {
     setLoginError('')
     setPausedTests([])
     setPausedTestsError('')
+    attemptStartedAtRef.current = ''
     resetSessionState()
     navigateToScreen(screenState.userSelect, true)
   }
@@ -351,6 +388,7 @@ export function MockTestApp() {
             answers,
             visitedQuestionIds,
             reviewQuestionIds,
+            startedAt: attemptStartedAtRef.current || new Date().toISOString(),
           }),
         },
       )
@@ -382,6 +420,10 @@ export function MockTestApp() {
       const saved = payload.data
       dispatch({ type: activeTestActions.resume, payload: saved })
       reset(saved.secondsLeft)
+      const resumedStartedAt = new Date(saved?.startedAt || Date.now())
+      attemptStartedAtRef.current = Number.isNaN(resumedStartedAt.getTime())
+        ? new Date().toISOString()
+        : resumedStartedAt.toISOString()
       pausedIdRef.current = id
       setPauseError('')
       navigateToScreen(screenState.test)
@@ -428,10 +470,10 @@ export function MockTestApp() {
   function cancelLogin() {
     setLoginUser(null)
     setLoginError('')
-    window.history.back()
+    navigateToScreen(screenState.userSelect, true)
   }
 
-  async function submitLogin(password) {
+  async function submitLogin() {
     if (!loginUser) {
       return
     }
@@ -441,9 +483,13 @@ export function MockTestApp() {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: loginUser.id, password }),
+        body: JSON.stringify({ userId: loginUser.id }),
       })
-      const payload = await response.json()
+      const payload = await parseJsonResponse(response)
+
+      if (!payload) {
+        throw new Error('Server returned an empty response. Please try again.')
+      }
 
       if (!response.ok || !payload.success) {
         throw new Error(payload.message || 'Login failed.')
@@ -581,6 +627,7 @@ export function MockTestApp() {
       return
     }
     setSelectedPreviousTestId(normalizedTestId)
+    setSelectedPreviousTest(null)
     setSelectedPreviousTestError('')
     setIsLoadingSelectedPreviousTest(true)
     try {
@@ -594,7 +641,16 @@ export function MockTestApp() {
         throw new Error(payload.message || 'Failed to fetch test details.')
       }
 
-      setSelectedPreviousTest(payload.data || null)
+      const list = scope === 'all' ? allTests : previousTests
+      const listItem = list.find((item) => item.testId === normalizedTestId)
+      setSelectedPreviousTest(scope !== 'all' && payload.data && listItem
+        ? {
+            ...payload.data,
+            result: listItem.result,
+            userAttemptNumber: listItem.userAttemptNumber,
+            resultAttemptNumber: listItem.resultAttemptNumber,
+          }
+        : payload.data || null)
     } catch (error) {
       setSelectedPreviousTest(null)
       setSelectedPreviousTestError(getReadableError(error, 'Unable to load test details.'))
@@ -655,6 +711,29 @@ export function MockTestApp() {
       setSelectedPreviousTestError(getReadableError(error, 'Unable to start this test.'))
     } finally {
       setIsRetakingPreviousTest(false)
+    }
+  }
+
+  async function reviewTest(testId) {
+    setIsReviewingTest(true)
+    setSelectedPreviousTestError('')
+    try {
+      const response = await apiFetch(
+        `${API_BASE_URL}/api/tests/${encodeURIComponent(testId)}/review`,
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || 'Failed to load the test review.')
+      }
+      if (!Array.isArray(payload.data?.questions) || !payload.data.result || !payload.data.answers) {
+        throw new Error('The saved test review is incomplete.')
+      }
+      setSavedTestReview(payload.data)
+      navigateToScreen(screenState.testReview)
+    } catch (error) {
+      setSelectedPreviousTestError(getReadableError(error, 'Unable to load the test review.'))
+    } finally {
+      setIsReviewingTest(false)
     }
   }
 
@@ -903,8 +982,10 @@ export function MockTestApp() {
           selectedTestError={selectedPreviousTestError}
           onOpenTest={(testId) => openPreviousTestDetails(testId, 'all')}
           onRetakeTest={retakePreviousTest}
+          onReviewTest={reviewTest}
           onCloseTest={closePreviousTestDetails}
           isRetakingTest={isRetakingPreviousTest}
+          isReviewingTest={isReviewingTest}
           onBack={() => window.history.back()}
           onRefresh={loadAllTests}
         />
@@ -995,7 +1076,28 @@ export function MockTestApp() {
       )}
 
       {screen === screenState.result && (
-        <ResultScreen result={result} testNumber={activeTestNumber} testNickname={activeTestNickname} onBackToHome={backToHome} />
+        <ResultScreen
+          result={result}
+          questions={activeQuestions}
+          answers={answers}
+          testNumber={activeTestNumber}
+          testNickname={activeTestNickname}
+          onBackToHome={backToHome}
+        />
+      )}
+      {screen === screenState.testReview && savedTestReview && (
+        <ResultScreen
+          result={savedTestReview.result}
+          questions={savedTestReview.questions}
+          answers={savedTestReview.answers}
+          testNumber={savedTestReview.displayNumber}
+          testNickname={savedTestReview.nickname}
+          onBackToHome={() => window.history.back()}
+          backLabel="Back to All Tests"
+          reviewNotice={savedTestReview.reconstructed
+            ? 'This older attempt uses the current question bank because its original questions were not saved.'
+            : ''}
+        />
       )}
     </main>
   )

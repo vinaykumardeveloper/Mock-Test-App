@@ -18,8 +18,11 @@ const pausedTestSchema = new mongoose.Schema(
     answers: { type: mongoose.Schema.Types.Mixed, default: {} },
     visitedQuestionIds: { type: mongoose.Schema.Types.Mixed, default: {} },
     reviewQuestionIds: { type: mongoose.Schema.Types.Mixed, default: {} },
+    startedAt: { type: Date, default: Date.now, index: true },
   },
   { timestamps: true, collection: 'pausedTests', minimize: false },
 )
+
+pausedTestSchema.index({ owner: 1, testId: 1, updatedAt: -1 })
 
 module.exports = mongoose.model('PausedTest', pausedTestSchema)

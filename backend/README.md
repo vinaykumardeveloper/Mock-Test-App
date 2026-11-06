@@ -16,12 +16,23 @@ npm run dev
 ## APIs
 
 - `GET /api/health`
+- `GET /api/auth/users`
+- `POST /api/auth/login` (requires only `userId`; no password)
 - `GET /api/questions/subjects`
 - `GET /api/questions/chapters?subject=<subject>`
-- `POST /api/questions/create-test` (strictly applies selected chapter filters: difficulty + question-number range, and stores generated test metadata in `tests`)
-- `GET /api/tests`
+- `POST /api/questions/create-test` (creates a shared test in `tests`, plus a user-owned attempt in `testAttempts`)
+- `GET /api/tests` (returns one entry per test in the authenticated user's history)
+- `GET /api/tests/all` (returns shared tests with the authenticated user's attempt summary)
 - `GET /api/tests/:testId`
-- `POST /api/tests/:testId/retake` (creates a new retake attempt entry in `tests` and returns its questions)
+- `GET /api/tests/:testId/review` (returns the authenticated user's latest completed attempt for a shared test)
+- `POST /api/tests/:testId/retake` (creates a user-owned attempt in `testAttempts` and returns questions)
+- `POST /api/tests/:testId/result` (stores result and answers for the authenticated user's attempt only)
+
+New attempts retain a snapshot of their questions for review. Older attempts without a snapshot
+use the current question bank and may not reflect subsequent question edits; legacy results without
+saved answers cannot be reviewed.
+Test lists show the latest started attempt number and the latest completed result, labeled with
+its attempt number. Older results and retakes are grouped by their root test.
 
 ## Difficulty Matching
 

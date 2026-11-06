@@ -60,8 +60,10 @@ export function PreviousTestsScreen({
   selectedTestError,
   onOpenTest,
   onRetakeTest,
+  onReviewTest,
   onCloseTest,
   isRetakingTest,
+  isReviewingTest = false,
   onBack,
   onRefresh,
   title = 'Previous Tests',
@@ -133,6 +135,12 @@ export function PreviousTestsScreen({
                   {showOwner && test.owner ? `Created by ${test.owner} • ` : ''}
                   Test Date: {formatDateTime(test.createdAt)}
                 </p>
+                <p className="sub-text">Attempt number - {test.userAttemptNumber ?? 0}</p>
+                {test.result && (
+                  <p className="sub-text">
+                    Result - Attempt {test.resultAttemptNumber}: {test.result.score} / {test.result.maxScore}
+                  </p>
+                )}
               </div>
               <div className="previous-test-meta">
                 <button
@@ -200,16 +208,30 @@ export function PreviousTestsScreen({
             {showOwner && selectedTest.owner ? `Created by ${selectedTest.owner} • ` : ''}
             Created: {formatDateTime(selectedTest.createdAt)}
           </p>
+          <p className="sub-text">Attempt number - {selectedTest.userAttemptNumber ?? 0}</p>
           {!readOnly && (
             <div className="previous-test-details-actions">
               <button
                 type="button"
                 className="primary-btn"
                 onClick={() => onRetakeTest(selectedTest.testId)}
-                disabled={isRetakingTest}
+                disabled={isRetakingTest || isReviewingTest}
               >
                 {isRetakingTest ? 'Starting Test...' : testActionLabel}
               </button>
+              {onReviewTest && (
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => onReviewTest(selectedTest.testId)}
+                  disabled={isRetakingTest || isReviewingTest}
+                >
+                  {isReviewingTest ? 'Loading Review...' : 'Review Test'}
+                </button>
+              )}
+              {onReviewTest && (
+                <p className="sub-text">Review shows your latest completed attempt.</p>
+              )}
             </div>
           )}
           <div className="previous-test-details-grid">
@@ -232,7 +254,9 @@ export function PreviousTestsScreen({
           <p className="sub-text">
             Filters: {getFilterSummary(selectedTest.filters)}
           </p>
-          <h4>Result</h4>
+          <h4>
+            Result{selectedTest.resultAttemptNumber ? ` - Attempt ${selectedTest.resultAttemptNumber}` : ''}
+          </h4>
           {selectedTest.result ? (
             <>
               <div className="previous-test-details-grid">

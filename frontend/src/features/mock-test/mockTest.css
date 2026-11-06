@@ -305,6 +305,10 @@ h3 {
 
 .previous-test-details-actions {
   margin: 10px 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .previous-test-details-grid {
@@ -690,6 +694,11 @@ h3 {
   margin-top: 12px;
 }
 
+.result-layout {
+  display: grid;
+  gap: 12px;
+}
+
 .result-card {
   text-align: center;
 }
@@ -712,6 +721,60 @@ h3 {
   margin: 0 0 8px;
   color: #64748b;
   font-size: 0.85rem;
+}
+
+.answer-review h2 {
+  margin-bottom: 8px;
+}
+
+.review-question {
+  padding: 20px 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.review-question h3 {
+  margin: 0 0 8px;
+}
+
+.review-status {
+  margin: 0 0 12px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.review-option {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.review-option.correct {
+  background: #f0fdf4;
+  border-color: #16a34a;
+  color: #166534;
+}
+
+.review-option.incorrect {
+  background: #fef2f2;
+  border-color: #dc2626;
+  color: #991b1b;
+}
+
+.review-option-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 @media (min-width: 640px) {

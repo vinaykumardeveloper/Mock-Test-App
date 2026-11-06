@@ -3,6 +3,7 @@ const crypto = require('crypto')
 const { isDbConnected } = require('../config/db')
 const Question = require('../models/Question')
 const Test = require('../models/Test')
+const TestAttempt = require('../models/TestAttempt')
 const { nextTestNumber } = require('../utils/testNumber')
 const { normalizeQuestionOptions } = require('../utils/questionOptions')
 
@@ -156,6 +157,10 @@ function toDifficultyLabel(value) {
 
 function createTestId() {
   return `TST-${crypto.randomUUID()}`
+}
+
+function createAttemptId() {
+  return `ATT-${crypto.randomUUID()}`
 }
 
 function normalizeQuestion(questionDoc, index) {
@@ -568,6 +573,31 @@ router.post('/create-test', async (req, res, next) => {
       questions: questionReferences,
     })
 
+    const attemptId = createAttemptId()
+    await TestAttempt.create({
+      attemptId,
+      userId: req.user.id,
+      testId,
+      rootTestId: testId,
+      attemptNumber: 1,
+      testName,
+      nickname,
+      totalQuestions: generatedQuestions.length,
+      durationMinutes,
+      markingScheme,
+      questions: generatedQuestions,
+      filters: {
+        subjects: subjectNames,
+        chapters: selections.map((item) => item.chapter),
+        topics: [],
+        difficulty: [...selectedDifficultySet],
+        questionNumberRange: {
+          from: starts.length > 0 ? Math.min(...starts) : null,
+          to: ends.length > 0 ? Math.max(...ends) : null,
+        },
+      },
+    })
+
     console.log(
       `[create-test] ${JSON.stringify({
         subject,
@@ -581,7 +611,8 @@ router.post('/create-test', async (req, res, next) => {
     res.json({
       success: true,
       data: {
-        testId,
+        testId: attemptId,
+        libraryTestId: testId,
         testNumber,
         displayNumber: String(testNumber),
         testName,

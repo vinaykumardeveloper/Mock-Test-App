@@ -29,6 +29,7 @@ function buildPayload(body) {
   const secondsLeft = Number(body?.secondsLeft)
   const currentQuestionIndex = Number(body?.currentQuestionIndex)
   const testName = String(body?.testName || '').trim()
+  const startedAt = new Date(body?.startedAt || Date.now())
 
   if (questions.length === 0 || questions.length > 500 || !testName) {
     return { error: 'A test name and at least one question are required.' }
@@ -38,6 +39,9 @@ function buildPayload(body) {
   }
   if (!Number.isFinite(secondsLeft) || secondsLeft < 0) {
     return { error: 'Invalid remaining time.' }
+  }
+  if (Number.isNaN(startedAt.getTime())) {
+    return { error: 'Invalid start time.' }
   }
 
   return {
@@ -66,6 +70,7 @@ function buildPayload(body) {
       answers: isPlainObject(body?.answers) ? body.answers : {},
       visitedQuestionIds: isPlainObject(body?.visitedQuestionIds) ? body.visitedQuestionIds : {},
       reviewQuestionIds: isPlainObject(body?.reviewQuestionIds) ? body.reviewQuestionIds : {},
+      startedAt,
     },
   }
 }
