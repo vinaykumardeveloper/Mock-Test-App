@@ -3,7 +3,7 @@ import { copyQuestions } from '../utils/copyQuestions'
 import { TestNumberBadge } from './TestNumberBadge'
 
 export function ResultScreen({
-  result, questions, answers, testNumber, testNickname, onBackToHome, backLabel = 'Back to Home',
+  userIcon, result, questions, answers, testNumber, testNickname, onBackToHome, backLabel = 'Back to Home',
   reviewNotice = '',
 }) {
   const [copyStatus, setCopyStatus] = useState('')
@@ -27,8 +27,13 @@ export function ResultScreen({
   return (
     <div className="result-layout">
       <section className="card result-card">
-        <div className="badge">Test Completed</div>
-        <TestNumberBadge number={testNumber} nickname={testNickname} size="large" />
+        <div className="result-heading">
+          {userIcon}
+          <div>
+            <div className="badge">Test Completed</div>
+            <TestNumberBadge number={testNumber} nickname={testNickname} size="large" />
+          </div>
+        </div>
         <h2>
           Your Score: {result.score} / {result.maxScore}
         </h2>

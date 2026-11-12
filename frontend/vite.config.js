@@ -9,9 +9,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'HV Test',
-        short_name: 'VH TEST',
-        description: 'VH Test - SSC, Banking and Railway Exam Preparation',
+        name: 'VH Tests',
+        short_name: 'VH Tests',
+        description: 'VH Tests - SSC, Banking and Railway Exam Preparation',
         theme_color: '#1e40af',
         background_color: '#ffffff',
         display: 'standalone',

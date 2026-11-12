@@ -20,6 +20,7 @@ npm run dev
 - `POST /api/auth/login` (requires only `userId`; no password)
 - `GET /api/questions/subjects`
 - `GET /api/questions/chapters?subject=<subject>`
+- `GET /api/questions/topics?subject=<subject>&chapter=<chapter>`
 - `POST /api/questions/create-test` (creates a shared test in `tests`, plus a user-owned attempt in `testAttempts`)
 - `GET /api/tests` (returns one entry per test in the authenticated user's history)
 - `GET /api/tests/all` (returns shared tests with the authenticated user's attempt summary)

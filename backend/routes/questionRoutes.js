@@ -113,6 +113,54 @@ router.get('/chapters', async (req, res, next) => {
   }
 })
 
+router.get('/topics', async (req, res, next) => {
+  try {
+    const subject = String(req.query.subject || '').trim()
+    const chapter = String(req.query.chapter || '').trim()
+    if (!subject || !chapter) {
+      res.status(400).json({
+        success: false,
+        message: 'Query params "subject" and "chapter" are required.',
+      })
+      return
+    }
+
+    const rows = await Question.aggregate([
+      {
+        $match: {
+          subject,
+          chapter,
+          topic: { $type: 'string', $ne: '' },
+        },
+      },
+      {
+        $group: {
+          _id: { $trim: { input: '$topic' } },
+          questionCount: { $sum: 1 },
+        },
+      },
+      {
+        $match: {
+          _id: { $ne: '' },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ])
+
+    res.json({
+      success: true,
+      data: rows.map((row) => ({
+        topic: row._id,
+        questionCount: row.questionCount,
+      })),
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 function shuffle(values) {
   const arr = [...values]
   for (let i = arr.length - 1; i > 0; i -= 1) {
@@ -273,10 +321,15 @@ router.post('/create-test', async (req, res, next) => {
         item?.endQuestionNumber === '' || item?.endQuestionNumber === undefined
           ? null
           : Number(item.endQuestionNumber)
+      const topics = Array.isArray(item?.topics)
+        ? [...new Set(item.topics.map((topic) => String(topic || '').trim()).filter(Boolean))]
+        : []
 
       chapterFilterMap.set(chapterName, {
         difficulties: [...difficultyMeta.selected],
         isAllLevelsSelected: difficultyMeta.isAllLevelsSelected,
+        topics,
+        hasTopicFilter: topics.length > 0,
         startQuestionNumber:
           Number.isInteger(startQuestionNumber) && startQuestionNumber > 0
             ? startQuestionNumber
@@ -344,9 +397,11 @@ router.post('/create-test', async (req, res, next) => {
       normalizationExclusions,
       excludedByDifficulty: 0,
       excludedByUnknownDifficulty: 0,
+      excludedByTopic: 0,
       excludedByRange: 0,
       excludedByMissingQuestionNumberForRange: 0,
       matchedDifficulty: 0,
+      matchedTopic: 0,
       matchedRangeAndDifficulty: 0,
       finalMatchingQuestions: 0,
       finalGeneratedQuestions: 0,
@@ -360,6 +415,8 @@ router.post('/create-test', async (req, res, next) => {
         const filter = chapterFilterMap.get(questionKey) || {
           difficulties: [...CANONICAL_DIFFICULTIES],
           isAllLevelsSelected: true,
+          topics: [],
+          hasTopicFilter: false,
           startQuestionNumber: null,
           endQuestionNumber: null,
         }
@@ -386,6 +443,14 @@ router.post('/create-test', async (req, res, next) => {
           filter.endQuestionNumber === null ||
           (questionNumber !== null && questionNumber <= filter.endQuestionNumber)
         const matchesRange = matchesStart && matchesEnd
+        const questionTopic = String(question.topic || '').trim()
+        const matchesTopic = !filter.hasTopicFilter || filter.topics.includes(questionTopic)
+
+        if (matchesTopic) {
+          filterDiagnostics.matchedTopic += 1
+        } else {
+          filterDiagnostics.excludedByTopic += 1
+        }
 
         if (matchesDifficulty && !matchesRange) {
           if (hasRangeFilter && questionNumber === null) {
@@ -395,7 +460,7 @@ router.post('/create-test', async (req, res, next) => {
           }
         }
 
-        if (matchesDifficulty && matchesRange) {
+        if (matchesDifficulty && matchesRange && matchesTopic) {
           filterDiagnostics.matchedRangeAndDifficulty += 1
           byChapter.get(questionKey).push(question)
           filteredQuestions.push(question)
@@ -502,6 +567,8 @@ router.post('/create-test', async (req, res, next) => {
       return {
         difficulties: [...CANONICAL_DIFFICULTIES],
         isAllLevelsSelected: true,
+        topics: [],
+        hasTopicFilter: false,
         startQuestionNumber: null,
         endQuestionNumber: null,
       }
@@ -513,6 +580,7 @@ router.post('/create-test', async (req, res, next) => {
       .map((filter) => filter.endQuestionNumber)
       .filter((value) => Number.isInteger(value) && value > 0)
     const selectedDifficultySet = new Set()
+    const selectedTopics = new Set()
     for (const filter of chapterFilters) {
       if (filter.isAllLevelsSelected) {
         selectedDifficultySet.add('Easy')
@@ -525,6 +593,9 @@ router.post('/create-test', async (req, res, next) => {
         if (label) {
           selectedDifficultySet.add(label)
         }
+      }
+      for (const topic of filter.topics) {
+        selectedTopics.add(topic)
       }
     }
 
@@ -563,7 +634,7 @@ router.post('/create-test', async (req, res, next) => {
       filters: {
         subjects: subjectNames,
         chapters: selections.map((item) => item.chapter),
-        topics: [],
+        topics: [...selectedTopics],
         difficulty: [...selectedDifficultySet],
         questionNumberRange: {
           from: starts.length > 0 ? Math.min(...starts) : null,
@@ -589,7 +660,7 @@ router.post('/create-test', async (req, res, next) => {
       filters: {
         subjects: subjectNames,
         chapters: selections.map((item) => item.chapter),
-        topics: [],
+        topics: [...selectedTopics],
         difficulty: [...selectedDifficultySet],
         questionNumberRange: {
           from: starts.length > 0 ? Math.min(...starts) : null,
@@ -621,6 +692,7 @@ router.post('/create-test', async (req, res, next) => {
         subject,
         subjects: subjectNames,
         chapters: selections.map((item) => item.chapter),
+        topics: [...selectedTopics],
         requestedTotal,
         generatedTotal: selected.length,
         distribution,

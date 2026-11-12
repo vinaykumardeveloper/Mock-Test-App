@@ -4,6 +4,7 @@ import { TestNumberBadge } from './TestNumberBadge'
 import { TestTitle } from './TestTitle'
 
 export function TestScreen({
+  userIcon,
   questions,
   testTitle,
   testNumber,
@@ -29,8 +30,13 @@ export function TestScreen({
     return (
       <section className="test-layout">
         <article className="card question-card">
-          <h3>Unable to load test question.</h3>
-          <p className="sub-text">Please go back and create the test again.</p>
+          <div className="page-heading">
+            {userIcon}
+            <div>
+              <h3>Unable to load test question.</h3>
+              <p className="sub-text">Please go back and create the test again.</p>
+            </div>
+          </div>
         </article>
       </section>
     )
@@ -69,14 +75,17 @@ export function TestScreen({
   return (
     <section className="test-layout">
       <header className="test-header card">
-        <div>
-          <TestNumberBadge number={testNumber} nickname={testNickname} size="large" />
-          <h2 className="test-header-title">
-            <TestTitle name={testTitle} />
-          </h2>
-          <p className="sub-text">
-            Question {currentQuestionIndex + 1} of {questions.length}
-          </p>
+        <div className="page-heading">
+          {userIcon}
+          <div>
+            <TestNumberBadge number={testNumber} nickname={testNickname} size="large" />
+            <h2 className="test-header-title">
+              <TestTitle name={testTitle} />
+            </h2>
+            <p className="sub-text">
+              Question {currentQuestionIndex + 1} of {questions.length}
+            </p>
+          </div>
         </div>
         <div className="test-header-controls">
           <div className="timer">{formatDuration(secondsLeft)}</div>
@@ -139,13 +148,9 @@ export function TestScreen({
             >
               Previous
             </button>
-            {currentQuestionIndex < questions.length - 1 ? (
+            {currentQuestionIndex < questions.length - 1 && (
               <button type="button" className="primary-btn" onClick={onNext}>
                 Save & Next
-              </button>
-            ) : (
-              <button type="button" className="submit-btn" onClick={onSubmit}>
-                Submit Test
               </button>
             )}
           </div>

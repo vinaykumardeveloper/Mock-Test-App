@@ -48,6 +48,13 @@ function getReadableError(error, fallbackMessage) {
   return error.message || fallbackMessage
 }
 
+function isGeneralAwarenessSubject(subject) {
+  const normalized = String(subject || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+  return normalized === 'generalawareness' || normalized === 'generalawarness'
+}
+
 async function parseJsonResponse(response) {
   const rawBody = await response.text()
   if (!rawBody) {
@@ -88,6 +95,8 @@ export function MockTestApp() {
   const [selectedSubject, setSelectedSubject] = useState('')
   const [selectedChapters, setSelectedChapters] = useState([])
   const [chapterConfigs, setChapterConfigs] = useState({})
+  const [topicsByChapter, setTopicsByChapter] = useState({})
+  const [loadingTopicsByChapter, setLoadingTopicsByChapter] = useState({})
   const [testNickname, setTestNickname] = useState('')
   const [negativeMarks, setNegativeMarks] = useState('0')
   const [totalQuestions, setTotalQuestions] = useState('30')
@@ -122,6 +131,7 @@ export function MockTestApp() {
   const latestAnswersRef = useRef({})
   const attemptStartedAtRef = useRef('')
   const historyInitializedRef = useRef(false)
+  const chaptersRequestRef = useRef(0)
 
   const navigateToScreen = useCallback((nextScreen, replace = false) => {
     const historyState = { mockTestApp: true, screen: nextScreen }
@@ -528,12 +538,15 @@ export function MockTestApp() {
   }
 
   async function loadChapters(subject) {
+    const requestId = ++chaptersRequestRef.current
     if (!subject) {
       setChapters([])
+      setIsLoadingChapters(false)
       return
     }
 
     setIsLoadingChapters(true)
+    setChapters([])
     try {
       const response = await apiFetch(
         `${API_BASE_URL}/api/questions/chapters?subject=${encodeURIComponent(subject)}`,
@@ -544,6 +557,9 @@ export function MockTestApp() {
         throw new Error(payload.message || 'Failed to fetch chapters.')
       }
 
+      if (requestId !== chaptersRequestRef.current) {
+        return
+      }
       const rows = Array.isArray(payload.data) ? payload.data : []
       setChapters(rows)
       setChapterConfigs((prev) => {
@@ -553,6 +569,7 @@ export function MockTestApp() {
           if (!nextConfigs[key]) {
             nextConfigs[key] = {
               difficulties: [...DIFFICULTY_LEVELS],
+              topics: [],
               startQuestionNumber: '',
               endQuestionNumber: '',
             }
@@ -562,20 +579,71 @@ export function MockTestApp() {
       })
       setPrepareTestError('')
     } catch (error) {
-      setPrepareTestError(getReadableError(error, 'Unable to load chapters.'))
-      setChapters([])
+      if (requestId === chaptersRequestRef.current) {
+        setPrepareTestError(getReadableError(error, 'Unable to load chapters.'))
+        setChapters([])
+      }
     } finally {
-      setIsLoadingChapters(false)
+      if (requestId === chaptersRequestRef.current) {
+        setIsLoadingChapters(false)
+      }
+    }
+  }
+
+  async function loadTopics(subject, chapter) {
+    const chapterKey = `${subject}||${chapter}`
+    setLoadingTopicsByChapter((prev) => ({ ...prev, [chapterKey]: true }))
+    try {
+      const response = await apiFetch(
+        `${API_BASE_URL}/api/questions/topics?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}`,
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || 'Failed to fetch topics.')
+      }
+      const rows = Array.isArray(payload.data) ? payload.data : []
+      const topics = rows
+        .map((row) => String(row?.topic || '').trim())
+        .filter(Boolean)
+      setTopicsByChapter((prev) => ({ ...prev, [chapterKey]: rows }))
+      setChapterConfigs((prev) => {
+        const current = prev[chapterKey] || {
+          difficulties: [...DIFFICULTY_LEVELS],
+          topics: [],
+          startQuestionNumber: '',
+          endQuestionNumber: '',
+        }
+        const existingTopics = Array.isArray(current.topics)
+          ? current.topics.filter((topic) => topics.includes(topic))
+          : []
+        const nextTopics = existingTopics.length > 0 ? existingTopics : topics
+        return {
+          ...prev,
+          [chapterKey]: {
+            ...current,
+            topics: nextTopics,
+          },
+        }
+      })
+    } catch (error) {
+      setTopicsByChapter((prev) => ({ ...prev, [chapterKey]: [] }))
+      setPrepareTestError(getReadableError(error, 'Unable to load topics.'))
+    } finally {
+      setLoadingTopicsByChapter((prev) => ({ ...prev, [chapterKey]: false }))
     }
   }
 
   function openPrepareTestPage() {
     void loadSubjects()
+    chaptersRequestRef.current += 1
+    setIsLoadingChapters(false)
     setPrepareTestError('')
     setSelectedSubject('')
     setSelectedChapters([])
     setChapters([])
     setChapterConfigs({})
+    setTopicsByChapter({})
+    setLoadingTopicsByChapter({})
     setTestNickname('')
     setNegativeMarks('0')
     navigateToScreen(screenState.prepareTest)
@@ -772,6 +840,8 @@ export function MockTestApp() {
         if (prev.includes(chapter)) {
           return prev
         }
+        const [subject, chapterName] = chapter.split('||')
+        void loadTopics(subject, chapterName)
         return [...prev, chapter]
       }
       return prev.filter((item) => item !== chapter)
@@ -782,6 +852,7 @@ export function MockTestApp() {
     setChapterConfigs((prev) => {
       const current = prev[chapter] || {
         difficulties: [...DIFFICULTY_LEVELS],
+        topics: [],
         startQuestionNumber: '',
         endQuestionNumber: '',
       }
@@ -801,10 +872,35 @@ export function MockTestApp() {
     })
   }
 
+  function onChapterTopicToggle(chapter, topic, checked) {
+    setChapterConfigs((prev) => {
+      const current = prev[chapter] || {
+        difficulties: [...DIFFICULTY_LEVELS],
+        topics: [],
+        startQuestionNumber: '',
+        endQuestionNumber: '',
+      }
+      const currentSet = new Set(Array.isArray(current.topics) ? current.topics : [])
+      if (checked) {
+        currentSet.add(topic)
+      } else {
+        currentSet.delete(topic)
+      }
+      return {
+        ...prev,
+        [chapter]: {
+          ...current,
+          topics: [...currentSet],
+        },
+      }
+    })
+  }
+
   function onChapterRangeChange(chapter, field, value) {
     setChapterConfigs((prev) => {
       const current = prev[chapter] || {
         difficulties: [...DIFFICULTY_LEVELS],
+        topics: [],
         startQuestionNumber: '',
         endQuestionNumber: '',
       }
@@ -842,28 +938,43 @@ export function MockTestApp() {
     }
 
     for (const chapterKey of selectedChapters) {
-      const [, chapter] = chapterKey.split('||')
+      const [subject, chapter] = chapterKey.split('||')
+      const isGeneralAwareness = isGeneralAwarenessSubject(subject)
       const config = chapterConfigs[chapterKey]
-      if (!config || !Array.isArray(config.difficulties) || config.difficulties.length === 0) {
+      if (
+        !isGeneralAwareness &&
+        (!config || !Array.isArray(config.difficulties) || config.difficulties.length === 0)
+      ) {
         setPrepareTestError(`Select at least one difficulty for chapter "${chapter}".`)
         return
       }
-      const start =
-        config.startQuestionNumber === '' ? null : Number(config.startQuestionNumber)
-      const end = config.endQuestionNumber === '' ? null : Number(config.endQuestionNumber)
-      if (start !== null && (!Number.isInteger(start) || start <= 0)) {
-        setPrepareTestError(`Invalid start question number for chapter "${chapter}".`)
+      const chapterTopics = topicsByChapter[chapterKey]
+      if (
+        Array.isArray(chapterTopics) &&
+        chapterTopics.length > 0 &&
+        (!Array.isArray(config?.topics) || config.topics.length === 0)
+      ) {
+        setPrepareTestError(`Select at least one topic for chapter "${chapter}".`)
         return
       }
-      if (end !== null && (!Number.isInteger(end) || end <= 0)) {
-        setPrepareTestError(`Invalid end question number for chapter "${chapter}".`)
-        return
-      }
-      if (start !== null && end !== null && start > end) {
-        setPrepareTestError(
-          `Question number range is invalid for chapter "${chapter}" (From > To).`,
-        )
-        return
+      if (!isGeneralAwareness) {
+        const start =
+          config.startQuestionNumber === '' ? null : Number(config.startQuestionNumber)
+        const end = config.endQuestionNumber === '' ? null : Number(config.endQuestionNumber)
+        if (start !== null && (!Number.isInteger(start) || start <= 0)) {
+          setPrepareTestError(`Invalid start question number for chapter "${chapter}".`)
+          return
+        }
+        if (end !== null && (!Number.isInteger(end) || end <= 0)) {
+          setPrepareTestError(`Invalid end question number for chapter "${chapter}".`)
+          return
+        }
+        if (start !== null && end !== null && start > end) {
+          setPrepareTestError(
+            `Question number range is invalid for chapter "${chapter}" (From > To).`,
+          )
+          return
+        }
       }
     }
 
@@ -882,17 +993,23 @@ export function MockTestApp() {
           nickname: testNickname.trim(),
           chapters: selections.map((item) => item.chapter),
           selections: selections.map((item) => {
+            const isGeneralAwareness = isGeneralAwarenessSubject(item.subject)
             const config = chapterConfigs[item.key] || {
               difficulties: [...DIFFICULTY_LEVELS],
+              topics: [],
               startQuestionNumber: '',
               endQuestionNumber: '',
             }
             return {
               subject: item.subject,
               chapter: item.chapter,
-              difficulties: config.difficulties,
-              startQuestionNumber: config.startQuestionNumber,
-              endQuestionNumber: config.endQuestionNumber,
+              difficulties:
+                isGeneralAwareness || !Array.isArray(config.difficulties) || config.difficulties.length === 0
+                  ? [...DIFFICULTY_LEVELS]
+                  : config.difficulties,
+              topics: config.topics,
+              startQuestionNumber: isGeneralAwareness ? '' : config.startQuestionNumber,
+              endQuestionNumber: isGeneralAwareness ? '' : config.endQuestionNumber,
             }
           }),
           totalQuestions: parsedTotalQuestions,
@@ -938,6 +1055,12 @@ export function MockTestApp() {
     }
   }
 
+  const userIcon = currentUser && (
+    <span className="app-user-avatar" aria-label={`Current user: ${currentUser.name}`}>
+      {currentUser.name?.charAt(0) || '?'}
+    </span>
+  )
+
   return (
     <main className="app-shell">
       {screen === screenState.userSelect && (
@@ -956,7 +1079,7 @@ export function MockTestApp() {
 
       {screen === screenState.home && (
         <HomeScreen
-          userName={currentUser?.name}
+          userIcon={userIcon}
           onLogout={logout}
           onViewPausedTests={openPausedTestsPage}
           onPrepareTest={openPrepareTestPage}
@@ -967,6 +1090,7 @@ export function MockTestApp() {
 
       {screen === screenState.allTests && (
         <PreviousTestsScreen
+          userIcon={userIcon}
           title="All Tests"
           badge="All Users"
           showOwner
@@ -993,6 +1117,7 @@ export function MockTestApp() {
 
       {screen === screenState.pausedTests && (
         <PausedTestsScreen
+          userIcon={userIcon}
           pausedTests={pausedTests}
           isLoading={isLoadingPausedTests}
           loadError={pausedTestsError}
@@ -1006,6 +1131,7 @@ export function MockTestApp() {
 
       {screen === screenState.previousTests && (
         <PreviousTestsScreen
+          userIcon={userIcon}
           previousTests={previousTests}
           isLoading={isLoadingPreviousTests}
           loadError={previousTestsError}
@@ -1024,11 +1150,15 @@ export function MockTestApp() {
 
       {screen === screenState.prepareTest && (
         <AvailablePdfsScreen
+          userIcon={userIcon}
           subjects={subjects}
           chapters={chapters}
           selectedSubject={selectedSubject}
           selectedChapters={selectedChapters}
           chapterConfigs={chapterConfigs}
+          topicsByChapter={topicsByChapter}
+          loadingTopicsByChapter={loadingTopicsByChapter}
+          isGeneralAwarenessSubject={isGeneralAwarenessSubject(selectedSubject)}
           totalQuestions={totalQuestions}
           testTimeMinutes={testTimeMinutes}
           isLoadingSubjects={isLoadingSubjects}
@@ -1040,6 +1170,7 @@ export function MockTestApp() {
           onSubjectChange={onSubjectChange}
           onChapterToggle={onChapterToggle}
           onChapterDifficultyToggle={onChapterDifficultyToggle}
+          onChapterTopicToggle={onChapterTopicToggle}
           onChapterRangeChange={onChapterRangeChange}
           testNickname={testNickname}
           negativeMarks={negativeMarks}
@@ -1053,6 +1184,7 @@ export function MockTestApp() {
 
       {screen === screenState.test && (
         <TestScreen
+          userIcon={userIcon}
           questions={activeQuestions}
           testTitle={activeTestLabel}
           testNumber={activeTestNumber}
@@ -1077,6 +1209,7 @@ export function MockTestApp() {
 
       {screen === screenState.result && (
         <ResultScreen
+          userIcon={userIcon}
           result={result}
           questions={activeQuestions}
           answers={answers}
@@ -1087,6 +1220,7 @@ export function MockTestApp() {
       )}
       {screen === screenState.testReview && savedTestReview && (
         <ResultScreen
+          userIcon={userIcon}
           result={savedTestReview.result}
           questions={savedTestReview.questions}
           answers={savedTestReview.answers}

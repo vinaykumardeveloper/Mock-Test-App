@@ -1,12 +1,17 @@
 export function AvailablePdfsScreen({
+  userIcon,
   subjects,
   chapters,
   selectedSubject,
   selectedChapters,
   chapterConfigs,
+  topicsByChapter,
+  loadingTopicsByChapter,
+  isGeneralAwarenessSubject,
   testNickname,
   negativeMarks,
-  onNegativeMarksChange,  totalQuestions,
+  onNegativeMarksChange,
+  totalQuestions,
   testTimeMinutes,
   isLoadingSubjects,
   isLoadingChapters,
@@ -17,6 +22,7 @@ export function AvailablePdfsScreen({
   onSubjectChange,
   onChapterToggle,
   onChapterDifficultyToggle,
+  onChapterTopicToggle,
   onChapterRangeChange,
   onTestNicknameChange,
   onTotalQuestionsChange,
@@ -33,12 +39,15 @@ export function AvailablePdfsScreen({
   return (
     <section className="card available-pdfs-page">
       <div className="upload-header">
-        <div>
-          <div className="badge">Create Test</div>
-          <h2>Create Custom Test</h2>
-          <p className="sub-text">
-            Choose subject, chapters, total questions and test time.
-          </p>
+        <div className="page-heading">
+          {userIcon}
+          <div>
+            <div className="badge">Create Test</div>
+            <h2>Create Custom Test</h2>
+            <p className="sub-text">
+              Choose chapters from one or more subjects, total questions and test time.
+            </p>
+          </div>
         </div>
         <button type="button" className="secondary-btn" onClick={onBack}>
           Back to Home
@@ -96,6 +105,11 @@ export function AvailablePdfsScreen({
 
         <div>
           <p className="question-count-label">Chapters</p>
+          {selectedChapters.length > 0 && (
+            <p className="sub-text">
+              Selected: {selectedChapters.map((key) => key.replace('||', ' – ')).join(', ')}
+            </p>
+          )}
           {isLoadingChapters ? (
             <p className="empty-list">Loading chapters...</p>
           ) : chapters.length === 0 ? (
@@ -106,19 +120,19 @@ export function AvailablePdfsScreen({
             </p>
           ) : (
             <div className="chapter-grid">
-              {selectedChapters.length > 0 && (
-                <p className="sub-text">
-                  Selected: {selectedChapters.map((key) => key.replace('||', ' – ')).join(', ')}
-                </p>
-              )}
               {chapters.map((chapter) => {
                 const chapterKey = `${selectedSubject}||${chapter.chapter}`
                 const isChecked = selectedChapters.includes(chapterKey)
                 const config = chapterConfigs[chapterKey] || {
                   difficulties: [...difficultyLevels],
+                  topics: [],
                   startQuestionNumber: '',
                   endQuestionNumber: '',
                 }
+                const chapterTopics = Array.isArray(topicsByChapter?.[chapterKey])
+                  ? topicsByChapter[chapterKey]
+                  : []
+                const isLoadingTopics = Boolean(loadingTopicsByChapter?.[chapterKey])
                 return (
                   <div key={chapter.chapter} className="chapter-item-wrap">
                     <label className="chapter-item">
@@ -136,59 +150,98 @@ export function AvailablePdfsScreen({
                     </label>
 
                     <div className={`chapter-config${isChecked ? '' : ' disabled'}`}>
-                        <div className="chapter-difficulties">
-                          {difficultyLevels.map((difficulty) => (
-                            <label key={`${chapter.chapter}-${difficulty}`} className="chapter-item">
+                        {!isGeneralAwarenessSubject && (
+                          <div className="chapter-difficulties">
+                            {difficultyLevels.map((difficulty) => (
+                              <label key={`${chapter.chapter}-${difficulty}`} className="chapter-item">
+                                <input
+                                  type="checkbox"
+                                  checked={config.difficulties.includes(difficulty)}
+                                  onChange={(event) =>
+                                    onChapterDifficultyToggle(
+                                      chapterKey,
+                                      difficulty,
+                                      event.target.checked,
+                                    )
+                                  }
+                                  disabled={isCreatingTest || !isChecked}
+                                />
+                                <span>{difficulty}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {isGeneralAwarenessSubject && (
+                          <div className="chapter-topics">
+                            <p className="chapter-topics-title">Topics</p>
+                            <div className="chapter-topics-list">
+                              {isLoadingTopics ? (
+                                <p className="empty-list">Loading topics...</p>
+                              ) : chapterTopics.length > 0 ? (
+                                chapterTopics.map((topic) => (
+                                  <label
+                                    key={`${chapter.chapter}-${topic.topic}`}
+                                    className="chapter-item"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={config.topics.includes(topic.topic)}
+                                      onChange={(event) =>
+                                        onChapterTopicToggle(
+                                          chapterKey,
+                                          topic.topic,
+                                          event.target.checked,
+                                        )
+                                      }
+                                      disabled={isCreatingTest || !isChecked}
+                                    />
+                                    <span>
+                                      {topic.topic} ({topic.questionCount})
+                                    </span>
+                                  </label>
+                                ))
+                              ) : (
+                                <p className="empty-list">No topics available.</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {!isGeneralAwarenessSubject && (
+                          <div className="chapter-range">
+                            <label>
+                              Q. No. From
                               <input
-                                type="checkbox"
-                                checked={config.difficulties.includes(difficulty)}
+                                type="number"
+                                min={1}
+                                value={config.startQuestionNumber}
                                 onChange={(event) =>
-                                  onChapterDifficultyToggle(
+                                  onChapterRangeChange(
                                     chapterKey,
-                                    difficulty,
-                                    event.target.checked,
+                                    'startQuestionNumber',
+                                    event.target.value,
                                   )
                                 }
                                 disabled={isCreatingTest || !isChecked}
                               />
-                              <span>{difficulty}</span>
                             </label>
-                          ))}
-                        </div>
-                        <div className="chapter-range">
-                          <label>
-                            Q. No. From
-                            <input
-                              type="number"
-                              min={1}
-                              value={config.startQuestionNumber}
-                              onChange={(event) =>
-                                onChapterRangeChange(
-                                  chapterKey,
-                                  'startQuestionNumber',
-                                  event.target.value,
-                                )
-                              }
-                              disabled={isCreatingTest || !isChecked}
-                            />
-                          </label>
-                          <label>
-                            To
-                            <input
-                              type="number"
-                              min={1}
-                              value={config.endQuestionNumber}
-                              onChange={(event) =>
-                                onChapterRangeChange(
-                                  chapterKey,
-                                  'endQuestionNumber',
-                                  event.target.value,
-                                )
-                              }
-                              disabled={isCreatingTest || !isChecked}
-                            />
-                          </label>
-                        </div>
+                            <label>
+                              To
+                              <input
+                                type="number"
+                                min={1}
+                                value={config.endQuestionNumber}
+                                onChange={(event) =>
+                                  onChapterRangeChange(
+                                    chapterKey,
+                                    'endQuestionNumber',
+                                    event.target.value,
+                                  )
+                                }
+                                disabled={isCreatingTest || !isChecked}
+                              />
+                            </label>
+                          </div>
+                        )}
                       </div>
                   </div>
                 )

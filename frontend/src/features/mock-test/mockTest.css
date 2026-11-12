@@ -74,9 +74,9 @@ h3 {
 }
 
 .home-brand {
-  margin: 32px 0 0;
+  margin: 16px 0 0;
   text-align: center;
-  font-size: 2.4rem;
+  font-size: clamp(1.7rem, 7vw, 2.4rem);
   font-weight: 800;
   letter-spacing: 0.12em;
   color: #1d4ed8;
@@ -88,7 +88,6 @@ h3 {
   align-items: flex-start;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: -52px;
 }
 
 .home-status-pill {
@@ -436,6 +435,32 @@ h3 {
   display: flex;
   gap: 12px;
   flex-wrap: nowrap;
+}
+
+.chapter-topics {
+  display: grid;
+  gap: 6px;
+  min-width: 260px;
+}
+
+.chapter-topics-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.chapter-topics-list {
+  display: grid;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.chapter-topics-list .chapter-item {
+  white-space: normal;
+  align-items: flex-start;
 }
 
 .chapter-range {
@@ -928,16 +953,33 @@ h3 {
   margin-left: auto;
 }
 
-.home-user-avatar {
+.page-heading,
+.result-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.page-heading > div {
+  min-width: 0;
+}
+
+.result-heading {
+  align-items: center;
+  justify-content: center;
+}
+
+.app-user-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   color: #fff;
   background: #2563eb;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   font-weight: 700;
   flex-shrink: 0;
 }

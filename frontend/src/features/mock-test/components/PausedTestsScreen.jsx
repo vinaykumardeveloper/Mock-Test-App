@@ -7,6 +7,7 @@ function formatTimeLeft(seconds) {
 }
 
 export function PausedTestsScreen({
+  userIcon,
   pausedTests,
   isLoading,
   loadError,
@@ -19,10 +20,13 @@ export function PausedTestsScreen({
   return (
     <section className="card paused-tests-page">
       <div className="upload-header">
-        <div>
-          <div className="badge">Mock Test Platform</div>
-          <h2>Paused Tests</h2>
-          <p className="sub-text">Resume a saved test or discard it.</p>
+        <div className="page-heading">
+          {userIcon}
+          <div>
+            <div className="badge">Mock Test Platform</div>
+            <h2>Paused Tests</h2>
+            <p className="sub-text">Resume a saved test or discard it.</p>
+          </div>
         </div>
         <div className="history-actions">
           <button type="button" className="secondary-btn" onClick={onRefresh} disabled={isLoading}>

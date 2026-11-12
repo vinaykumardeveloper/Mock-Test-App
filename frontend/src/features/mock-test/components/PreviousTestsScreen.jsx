@@ -51,6 +51,7 @@ function getFilterSummary(filters) {
 }
 
 export function PreviousTestsScreen({
+  userIcon,
   previousTests,
   isLoading,
   loadError,
@@ -102,9 +103,12 @@ export function PreviousTestsScreen({
   return (
     <section className="card previous-tests-page">
       <div className="upload-header">
-        <div>
-          <div className="badge">{badge}</div>
-          <h2>{title}</h2>
+        <div className="page-heading">
+          {userIcon}
+          <div>
+            <div className="badge">{badge}</div>
+            <h2>{title}</h2>
+          </div>
         </div>
         <div className="history-actions">
           <button type="button" className="secondary-btn" onClick={onRefresh} disabled={isLoading}>
