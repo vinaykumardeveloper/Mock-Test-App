@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { formatDuration } from '../utils/format'
 import { normalizeQuestionOptionTexts } from '../utils/questionOptions'
 import { TestNumberBadge } from './TestNumberBadge'
@@ -22,9 +23,19 @@ export function TestScreen({
   onNext,
   onSubmit,
   onPause,
+  onBack,
+  showBackConfirmation,
+  onCancelBack,
   isPausing,
   pauseError,
 }) {
+  const confirmationRef = useRef(null)
+  useEffect(() => {
+    if (showBackConfirmation) {
+      confirmationRef.current?.showModal()
+    }
+  }, [showBackConfirmation])
+
   const currentQuestion = questions[currentQuestionIndex]
   if (!currentQuestion) {
     return (
@@ -89,6 +100,9 @@ export function TestScreen({
         </div>
         <div className="test-header-controls">
           <div className="timer">{formatDuration(secondsLeft)}</div>
+          <button type="button" className="secondary-btn" onClick={onBack} disabled={isPausing}>
+            Back
+          </button>
           <button
             type="button"
             className="secondary-btn"
@@ -99,9 +113,9 @@ export function TestScreen({
           </button>
         </div>
       </header>
-      {pauseError && <p className="upload-status error">{pauseError}</p>}
+      {pauseError && !showBackConfirmation && <p className="upload-status error">{pauseError}</p>}
 
-      <div className="test-content">
+      <div className="test-content" inert={isPausing || undefined}>
         <article className="card question-card">
           <p className="question-number">
             Question No - {sequenceQuestionNumber}
@@ -200,6 +214,28 @@ export function TestScreen({
           </button>
         </aside>
       </div>
+      {showBackConfirmation && (
+        <dialog
+          ref={confirmationRef}
+          className="pause-confirmation"
+          aria-labelledby="pause-confirmation-title"
+          onCancel={(event) => {
+            event.preventDefault()
+            if (!isPausing) onCancelBack()
+          }}
+        >
+          <h3 id="pause-confirmation-title">Are you sure you want to pause this test and go back?</h3>
+          {pauseError && <p className="upload-status error" role="alert">{pauseError}</p>}
+          <div className="pause-confirmation-actions">
+            <button type="button" className="secondary-btn" onClick={onCancelBack} disabled={isPausing} autoFocus>
+              No
+            </button>
+            <button type="button" className="primary-btn" onClick={onPause} disabled={isPausing}>
+              {isPausing ? 'Pausing...' : 'Yes'}
+            </button>
+          </div>
+        </dialog>
+      )}
     </section>
   )
 }

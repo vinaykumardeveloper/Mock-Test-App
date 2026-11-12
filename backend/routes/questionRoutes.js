@@ -615,7 +615,17 @@ router.post('/create-test', async (req, res, next) => {
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 40)
-    const testName = `Mock Test • ${subject} • ${selections.map((item) => item.chapter).join(', ')}`
+    const titleSelections = selections.map((item) => {
+      const normalizedSubject = item.subject.toLowerCase().replace(/\s+/g, '')
+      const topics = chapterFilterMap.get(item.key).topics
+      return (
+        (normalizedSubject === 'generalawareness' || normalizedSubject === 'generalawarness') &&
+        topics.length > 0
+      )
+        ? `${item.chapter} (${topics.join(', ')})`
+        : item.chapter
+    })
+    const testName = `Mock Test • ${subject} • ${titleSelections.join(', ')}`
     const testId = createTestId()
     const testNumber = await nextTestNumber(req.user.id)
 

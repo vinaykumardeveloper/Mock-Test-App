@@ -551,6 +551,26 @@ h3 {
   flex-direction: row;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pause-confirmation {
+  width: min(420px, calc(100% - 64px));
+  border: 1px solid #e3e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.2);
+}
+
+.pause-confirmation::backdrop {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.pause-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 .timer {

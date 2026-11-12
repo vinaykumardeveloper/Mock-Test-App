@@ -5,6 +5,11 @@ body {
   margin: 0;
 }
 
+html.taking-test,
+html.taking-test body {
+  overscroll-behavior-y: none;
+}
+
 #root {
   min-height: 100vh;
 }

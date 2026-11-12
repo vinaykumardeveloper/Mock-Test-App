@@ -125,6 +125,7 @@ export function MockTestApp() {
   const [resumingPausedId, setResumingPausedId] = useState('')
   const [isPausing, setIsPausing] = useState(false)
   const [pauseError, setPauseError] = useState('')
+  const [showBackConfirmation, setShowBackConfirmation] = useState(false)
   const pausedIdRef = useRef(null)
   const authTokenRef = useRef('')
   const latestResultRef = useRef({ testId: '', summary: null })
@@ -132,6 +133,7 @@ export function MockTestApp() {
   const attemptStartedAtRef = useRef('')
   const historyInitializedRef = useRef(false)
   const chaptersRequestRef = useRef(0)
+  const screenRef = useRef(screenState.userSelect)
 
   const navigateToScreen = useCallback((nextScreen, replace = false) => {
     const historyState = { mockTestApp: true, screen: nextScreen }
@@ -139,6 +141,10 @@ export function MockTestApp() {
       window.history.replaceState(historyState, '')
     } else {
       window.history.pushState(historyState, '')
+    }
+    screenRef.current = nextScreen
+    if (nextScreen !== screenState.test) {
+      setShowBackConfirmation(false)
     }
     setScreen(nextScreen)
   }, [])
@@ -184,6 +190,12 @@ export function MockTestApp() {
     }
 
     function handlePopState(event) {
+      if (screenRef.current === screenState.test) {
+        window.history.pushState({ mockTestApp: true, screen: screenState.test }, '')
+        setShowBackConfirmation(true)
+        return
+      }
+
       const historyState = event.state
       const validScreen =
         historyState?.mockTestApp && Object.values(screenState).includes(historyState.screen)
@@ -194,6 +206,7 @@ export function MockTestApp() {
         return
       }
 
+      screenRef.current = historyState.screen
       setScreen(historyState.screen)
       if (historyState.boundary) {
         window.history.pushState(
@@ -207,9 +220,26 @@ export function MockTestApp() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [navigateToScreen])
 
+  useEffect(() => {
+    if (screen !== screenState.test) {
+      return undefined
+    }
+
+    document.documentElement.classList.add('taking-test')
+    function warnBeforeUnload(event) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => {
+      document.documentElement.classList.remove('taking-test')
+      window.removeEventListener('beforeunload', warnBeforeUnload)
+    }
+  }, [screen])
+
   const { secondsLeft, reset } = useCountdown(
     testDurationSeconds,
-    screen === screenState.test,
+    screen === screenState.test && !isPausing,
     submitTest,
   )
 
@@ -287,6 +317,7 @@ export function MockTestApp() {
       ? new Date().toISOString()
       : parsedStartedAt.toISOString()
     setPauseError('')
+    setShowBackConfirmation(false)
     navigateToScreen(screenState.test, true)
   }
 
@@ -436,6 +467,7 @@ export function MockTestApp() {
         : resumedStartedAt.toISOString()
       pausedIdRef.current = id
       setPauseError('')
+      setShowBackConfirmation(false)
       navigateToScreen(screenState.test)
     } catch (error) {
       setPausedTestsError(getReadableError(error, 'Unable to resume the test.'))
@@ -1035,7 +1067,7 @@ export function MockTestApp() {
       }
 
       const subjectNames = [...new Set(selections.map((item) => item.subject))]
-      const label = `Mock Test • ${subjectNames.join(', ')} • ${selections
+      const label = payload?.data?.testName || `Mock Test • ${subjectNames.join(', ')} • ${selections
         .map((item) => item.chapter)
         .join(', ')}`
       startTest(
@@ -1202,6 +1234,12 @@ export function MockTestApp() {
           onNext={moveToNextQuestion}
           onSubmit={submitTest}
           onPause={pauseTest}
+          onBack={() => {
+            setPauseError('')
+            setShowBackConfirmation(true)
+          }}
+          showBackConfirmation={showBackConfirmation}
+          onCancelBack={() => setShowBackConfirmation(false)}
           isPausing={isPausing}
           pauseError={pauseError}
         />
