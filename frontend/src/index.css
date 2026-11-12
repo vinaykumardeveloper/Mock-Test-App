@@ -5,8 +5,8 @@ body {
   margin: 0;
 }
 
-html.taking-test,
-html.taking-test body {
+html,
+body {
   overscroll-behavior-y: none;
 }
 

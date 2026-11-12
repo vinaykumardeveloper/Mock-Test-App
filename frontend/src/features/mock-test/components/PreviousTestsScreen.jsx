@@ -72,6 +72,8 @@ export function PreviousTestsScreen({
   showOwner = false,
   readOnly = false,
   testActionLabel = 'Retake Test',
+  reviewActionLabel = 'Review Test',
+  showReviewInList = false,
   emptyText = 'No saved tests found yet.',
   loadingText = 'Loading previous tests...',
 }) {
@@ -147,6 +149,17 @@ export function PreviousTestsScreen({
                 )}
               </div>
               <div className="previous-test-meta">
+                {showReviewInList && onReviewTest && (
+                  <button
+                    type="button"
+                    className="secondary-btn small-btn"
+                    onClick={() => onReviewTest(test.rootTestId || test.libraryTestId || test.testId)}
+                    disabled={!test.result || isReviewingTest || isRetakingTest}
+                    title={!test.result ? 'No completed result to show' : undefined}
+                  >
+                    {reviewActionLabel}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="secondary-btn small-btn"
@@ -191,7 +204,7 @@ export function PreviousTestsScreen({
         </div>
       )}
 
-      {selectedTestError &&   <p className="upload-status error">{selectedTestError}</p>}
+      {selectedTestError && <p className="upload-status error" role="alert">{selectedTestError}</p>}
 
       {selectedTest && (
         <section className="previous-test-details card">
@@ -227,10 +240,11 @@ export function PreviousTestsScreen({
                 <button
                   type="button"
                   className="secondary-btn"
-                  onClick={() => onReviewTest(selectedTest.testId)}
-                  disabled={isRetakingTest || isReviewingTest}
+                  onClick={() => onReviewTest(selectedTest.rootTestId || selectedTest.libraryTestId || selectedTest.testId)}
+                  disabled={isRetakingTest || isReviewingTest || (showReviewInList && !selectedTest.result)}
+                  title={showReviewInList && !selectedTest.result ? 'No completed result to show' : undefined}
                 >
-                  {isReviewingTest ? 'Loading Review...' : 'Review Test'}
+                  {isReviewingTest ? 'Loading Review...' : reviewActionLabel}
                 </button>
               )}
               {onReviewTest && (

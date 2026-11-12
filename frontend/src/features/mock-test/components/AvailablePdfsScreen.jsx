@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 export function AvailablePdfsScreen({
   userIcon,
   subjects,
@@ -19,6 +21,9 @@ export function AvailablePdfsScreen({
   createProgress,
   prepareTestError,
   onBack,
+  showBackConfirmation,
+  onCancelBack,
+  onConfirmBack,
   onSubjectChange,
   onChapterToggle,
   onChapterDifficultyToggle,
@@ -29,6 +34,13 @@ export function AvailablePdfsScreen({
   onTestTimeChange,
   onCreateTest,
 }) {
+  const confirmationRef = useRef(null)
+  useEffect(() => {
+    if (showBackConfirmation) {
+      confirmationRef.current?.showModal()
+    }
+  }, [showBackConfirmation])
+
   const difficultyLevels = ['Easy', 'Moderate', 'Hard']
   const canStart =
     selectedChapters.length > 0 &&
@@ -49,10 +61,32 @@ export function AvailablePdfsScreen({
             </p>
           </div>
         </div>
-        <button type="button" className="secondary-btn" onClick={onBack}>
+        <button type="button" className="secondary-btn" onClick={onBack} disabled={isCreatingTest}>
           Back to Home
         </button>
       </div>
+      {showBackConfirmation && (
+        <dialog
+          ref={confirmationRef}
+          className="pause-confirmation"
+          aria-labelledby="create-back-confirmation-title"
+          onCancel={(event) => {
+            event.preventDefault()
+            onCancelBack()
+          }}
+        >
+          <h3 id="create-back-confirmation-title">Are you sure you want to go back?</h3>
+          {isCreatingTest && <p className="sub-text">Creating test... Please wait.</p>}
+          <div className="pause-confirmation-actions">
+            <button type="button" className="secondary-btn" onClick={onCancelBack} autoFocus>
+              No
+            </button>
+            <button type="button" className="primary-btn" onClick={onConfirmBack} disabled={isCreatingTest}>
+              Yes
+            </button>
+          </div>
+        </dialog>
+      )}
 
       {prepareTestError && <p className="upload-status error">{prepareTestError}</p>}
 

@@ -119,6 +119,7 @@ export function MockTestApp() {
   const [isRetakingPreviousTest, setIsRetakingPreviousTest] = useState(false)
   const [isReviewingTest, setIsReviewingTest] = useState(false)
   const [savedTestReview, setSavedTestReview] = useState(null)
+  const [reviewOrigin, setReviewOrigin] = useState(screenState.allTests)
   const [pausedTests, setPausedTests] = useState([])
   const [pausedTestsError, setPausedTestsError] = useState('')
   const [isLoadingPausedTests, setIsLoadingPausedTests] = useState(false)
@@ -126,6 +127,7 @@ export function MockTestApp() {
   const [isPausing, setIsPausing] = useState(false)
   const [pauseError, setPauseError] = useState('')
   const [showBackConfirmation, setShowBackConfirmation] = useState(false)
+  const [showCreateBackConfirmation, setShowCreateBackConfirmation] = useState(false)
   const pausedIdRef = useRef(null)
   const authTokenRef = useRef('')
   const latestResultRef = useRef({ testId: '', summary: null })
@@ -145,6 +147,9 @@ export function MockTestApp() {
     screenRef.current = nextScreen
     if (nextScreen !== screenState.test) {
       setShowBackConfirmation(false)
+    }
+    if (nextScreen !== screenState.prepareTest) {
+      setShowCreateBackConfirmation(false)
     }
     setScreen(nextScreen)
   }, [])
@@ -195,6 +200,11 @@ export function MockTestApp() {
         setShowBackConfirmation(true)
         return
       }
+      if (screenRef.current === screenState.prepareTest) {
+        window.history.pushState({ mockTestApp: true, screen: screenState.prepareTest }, '')
+        setShowCreateBackConfirmation(true)
+        return
+      }
 
       const historyState = event.state
       const validScreen =
@@ -221,18 +231,16 @@ export function MockTestApp() {
   }, [navigateToScreen])
 
   useEffect(() => {
-    if (screen !== screenState.test) {
+    if (screen !== screenState.test && screen !== screenState.prepareTest) {
       return undefined
     }
 
-    document.documentElement.classList.add('taking-test')
     function warnBeforeUnload(event) {
       event.preventDefault()
       event.returnValue = ''
     }
     window.addEventListener('beforeunload', warnBeforeUnload)
     return () => {
-      document.documentElement.classList.remove('taking-test')
       window.removeEventListener('beforeunload', warnBeforeUnload)
     }
   }, [screen])
@@ -829,6 +837,7 @@ export function MockTestApp() {
         throw new Error('The saved test review is incomplete.')
       }
       setSavedTestReview(payload.data)
+      setReviewOrigin(screen)
       navigateToScreen(screenState.testReview)
     } catch (error) {
       setSelectedPreviousTestError(getReadableError(error, 'Unable to load the test review.'))
@@ -1173,8 +1182,12 @@ export function MockTestApp() {
           selectedTestError={selectedPreviousTestError}
           onOpenTest={openPreviousTestDetails}
           onRetakeTest={retakePreviousTest}
+          onReviewTest={reviewTest}
           onCloseTest={closePreviousTestDetails}
           isRetakingTest={isRetakingPreviousTest}
+          isReviewingTest={isReviewingTest}
+          reviewActionLabel="Show Results"
+          showReviewInList
           onBack={backToHome}
           onRefresh={loadPreviousTests}
         />
@@ -1198,7 +1211,10 @@ export function MockTestApp() {
           isCreatingTest={isCreatingTest}
           createProgress={createProgress}
           prepareTestError={prepareTestError}
-          onBack={backToHome}
+          onBack={() => setShowCreateBackConfirmation(true)}
+          showBackConfirmation={showCreateBackConfirmation}
+          onCancelBack={() => setShowCreateBackConfirmation(false)}
+          onConfirmBack={backToHome}
           onSubjectChange={onSubjectChange}
           onChapterToggle={onChapterToggle}
           onChapterDifficultyToggle={onChapterDifficultyToggle}
@@ -1265,7 +1281,7 @@ export function MockTestApp() {
           testNumber={savedTestReview.displayNumber}
           testNickname={savedTestReview.nickname}
           onBackToHome={() => window.history.back()}
-          backLabel="Back to All Tests"
+          backLabel={reviewOrigin === screenState.previousTests ? 'Back to Previous Tests' : 'Back to All Tests'}
           reviewNotice={savedTestReview.reconstructed
             ? 'This older attempt uses the current question bank because its original questions were not saved.'
             : ''}
