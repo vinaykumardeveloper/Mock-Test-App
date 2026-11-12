@@ -65,7 +65,7 @@ test('reviews correct, incorrect and unanswered questions with every option', ()
     answers: { 1: 0, 2: 0 },
     onBackToHome: () => {},
   }))
-  const articles = [...html.matchAll(/<article class="review-question">([\s\S]*?)<\/article>/g)]
+  const articles = [...html.matchAll(/<article class="review-question(?: unattempted)?">([\s\S]*?)<\/article>/g)]
 
   assert.equal(articles.length, 3)
   assert.match(articles[0][1], /Correctly answered/)

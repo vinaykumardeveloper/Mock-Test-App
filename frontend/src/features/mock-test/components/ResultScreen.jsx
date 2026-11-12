@@ -67,14 +67,14 @@ export function ResultScreen({
         <h2 id="answer-review-title">Question Review</h2>
         {reviewNotice && <p className="sub-text">{reviewNotice}</p>}
         <p className="sub-text">
-          Correct answers are shown in green. Your incorrect selections are shown in red.
+          Correct answers are shown in green. Your incorrect selections are shown in red. Unattempted questions are shown in grey.
         </p>
         {questions.map((question, questionIndex) => {
           const selectedOption = answers[question.id]
           const hasAnswer = Number.isInteger(selectedOption)
 
           return (
-            <article className="review-question" key={question.id}>
+            <article className={`review-question${hasAnswer ? '' : ' unattempted'}`} key={question.id}>
               <p className="question-number">Question No - {questionIndex + 1}</p>
               <h3>{question.question}</h3>
               <p className="review-status">

@@ -813,6 +813,30 @@ h3 {
   color: #991b1b;
 }
 
+.review-question.unattempted {
+  background: #f1f5f9;
+  color: #94a3b8;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.review-question.unattempted h3,
+.review-question.unattempted .question-number,
+.review-question.unattempted .review-status,
+.review-question.unattempted .review-option,
+.review-question.unattempted .review-option.correct {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.review-question.unattempted h3,
+.review-question.unattempted .question-number,
+.review-question.unattempted .review-status {
+  background: transparent;
+  border-color: transparent;
+}
+
 .review-option-label {
   font-size: 0.85rem;
   font-weight: 700;
